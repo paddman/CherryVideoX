@@ -1,0 +1,48 @@
+name: Assemble CherryVideoX source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .bootstrap/READY
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  assemble-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reconstruct source payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .bootstrap/payload.part-* | base64 --decode > /tmp/cherryvideox-payload.tar.gz
+          tar -xzf /tmp/cherryvideox-payload.tar.gz -C .
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type-check and build web application
+        run: npm run build
+
+      - name: Commit validated application source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .bootstrap
+          rm -f .github/workflows/bootstrap.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: build CherryVideoX desktop and web editor"
+          git push origin HEAD:main
